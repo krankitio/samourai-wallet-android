@@ -2,7 +2,7 @@
 
 ### Features:
 
-[Samourai Wallet features list](https://github.com/Samourai-Wallet/Samourai=Wallet-features.md)
+[Samourai Wallet features list](Samourai-Wallet-features.md)
 
 ### Build:
 
@@ -85,8 +85,6 @@ All development goes in 'develop' branch - do not submit pull requests to 'maste
 [Samourai HQ](https://samouraiwallet.com)
 
 [Sentinel](https://play.google.com/store/apps/details?id=com.samourai.sentinel&hl=en)
-
-[Afterburner](https://play.google.com/store/apps/details?id=com.samourai.afterburner&hl=en)
 
 [PayNym.is](https://paynym.is)
 

@@ -25,6 +25,7 @@ import com.samourai.wallet.segwit.BIP49Util;
 import com.samourai.wallet.segwit.BIP84Util;
 import com.samourai.wallet.send.BlockedUTXO;
 import com.samourai.wallet.util.AddressFactory;
+import com.samourai.wallet.util.AppUtil;
 import com.samourai.wallet.util.BatchSendUtil;
 import com.samourai.wallet.util.CharSequenceX;
 import com.samourai.wallet.util.PrefsUtil;
@@ -34,11 +35,13 @@ import com.samourai.wallet.util.SendAddressUtil;
 import com.samourai.wallet.JSONRPC.TrustedNodeUtil;
 import com.samourai.wallet.util.TorUtil;
 import com.samourai.wallet.util.WebUtil;
+import com.samourai.wallet.whirlpool.WhirlpoolMeta;
 
 import org.apache.commons.codec.DecoderException;
 
 import org.bitcoinj.core.AddressFormatException;
 import org.bitcoinj.core.NetworkParameters;
+import org.bitcoinj.crypto.MnemonicCode;
 import org.bitcoinj.crypto.MnemonicException;
 import org.bitcoinj.params.MainNetParams;
 
@@ -68,6 +71,16 @@ public class PayloadUtil	{
     private final static String strFilename = "samourai.dat";
     private final static String strTmpFilename = "samourai.tmp";
     private final static String strBackupFilename = "samourai.sav";
+
+    private final static String strMultiAddrFilename = "samourai.multi";
+    private final static String strUTXOFilename = "samourai.utxo";
+    private final static String strFX_LBC = "samourai.fx_lbc";
+    private final static String strFX_BFX = "samourai.fx_bfx";
+    private final static String strFX_BTCe_USD = "samourai.fx_btce_usd";
+    private final static String strFX_BTCe_RUR = "samourai.fx_btce_rur";
+    private final static String strFX_BTCe_EUR = "samourai.fx_btce_eur";
+    private final static String strFeesFilename = "samourai.fees";
+    private final static String strPayNymFilename = "samourai.paynyms";
 
     private final static String strOptionalBackupDir = "/samourai";
     private final static String strOptionalFilename = "samourai.txt";
@@ -128,6 +141,96 @@ public class PayloadUtil	{
         }
 
         return false;
+    }
+
+    public void serializeMultiAddr(JSONObject obj)  throws IOException, JSONException, DecryptionException, UnsupportedEncodingException    {
+        if(!AppUtil.getInstance(context).isOfflineMode())    {
+            serializeAux(obj, new CharSequenceX(AccessFactory.getInstance(context).getGUID() + AccessFactory.getInstance().getPIN()), strMultiAddrFilename);
+        }
+    }
+
+    public void serializeUTXO(JSONObject obj)  throws IOException, JSONException, DecryptionException, UnsupportedEncodingException    {
+        if(!AppUtil.getInstance(context).isOfflineMode())    {
+            serializeAux(obj, new CharSequenceX(AccessFactory.getInstance(context).getGUID() + AccessFactory.getInstance().getPIN()), strUTXOFilename);
+        }
+    }
+
+    public void serializeFX_LBC(JSONObject obj)  throws IOException, JSONException, DecryptionException, UnsupportedEncodingException    {
+        if(!AppUtil.getInstance(context).isOfflineMode())    {
+            serializeAux(obj, null, strFX_LBC);
+        }
+    }
+
+    public void serializeFX_BTCe_USD(JSONObject obj)  throws IOException, JSONException, DecryptionException, UnsupportedEncodingException    {
+        if(!AppUtil.getInstance(context).isOfflineMode())    {
+            serializeAux(obj, null, strFX_BTCe_USD);
+        }
+    }
+
+    public void serializeFX_BTCe_RUR(JSONObject obj)  throws IOException, JSONException, DecryptionException, UnsupportedEncodingException    {
+        if(!AppUtil.getInstance(context).isOfflineMode())    {
+            serializeAux(obj, null, strFX_BTCe_RUR);
+        }
+    }
+
+    public void serializeFX_BTCe_EUR(JSONObject obj)  throws IOException, JSONException, DecryptionException, UnsupportedEncodingException    {
+        if(!AppUtil.getInstance(context).isOfflineMode())    {
+            serializeAux(obj, null, strFX_BTCe_EUR);
+        }
+    }
+
+    public void serializeFX_BFX(JSONObject obj)  throws IOException, JSONException, DecryptionException, UnsupportedEncodingException    {
+        if(!AppUtil.getInstance(context).isOfflineMode())    {
+            serializeAux(obj, null, strFX_BFX);
+        }
+    }
+
+    public void serializeFees(JSONObject obj)  throws IOException, JSONException, DecryptionException, UnsupportedEncodingException    {
+        if(!AppUtil.getInstance(context).isOfflineMode())    {
+            serializeAux(obj, null, strFeesFilename);
+        }
+    }
+
+    public void serializePayNyms(JSONObject obj)  throws IOException, JSONException, DecryptionException, UnsupportedEncodingException    {
+        if(!AppUtil.getInstance(context).isOfflineMode())    {
+            serializeAux(obj, new CharSequenceX(AccessFactory.getInstance(context).getGUID() + AccessFactory.getInstance().getPIN()), strPayNymFilename);
+        }
+    }
+
+    public JSONObject deserializeMultiAddr()  throws IOException, JSONException {
+        return deserializeAux(new CharSequenceX(AccessFactory.getInstance(context).getGUID() + AccessFactory.getInstance().getPIN()), strMultiAddrFilename);
+    }
+
+    public JSONObject deserializeUTXO()  throws IOException, JSONException  {
+        return deserializeAux(new CharSequenceX(AccessFactory.getInstance(context).getGUID() + AccessFactory.getInstance().getPIN()), strUTXOFilename);
+    }
+
+    public JSONObject deserializeFX_LBC()  throws IOException, JSONException  {
+        return deserializeAux(null, strFX_LBC);
+    }
+
+    public JSONObject deserializeFX_BTCe_USD()  throws IOException, JSONException  {
+        return deserializeAux(null, strFX_BTCe_USD);
+    }
+
+    public JSONObject deserializeFX_BTCe_RUR()  throws IOException, JSONException  {
+        return deserializeAux(null, strFX_BTCe_RUR);
+    }
+
+    public JSONObject deserializeFX_BTCe_EUR()  throws IOException, JSONException  {
+        return deserializeAux(null, strFX_BTCe_EUR);
+    }
+
+    public JSONObject deserializeFX_BFX()  throws IOException, JSONException  {
+        return deserializeAux(null, strFX_BFX);
+    }
+
+    public JSONObject deserializeFees()  throws IOException, JSONException  {
+        return deserializeAux(null, strFeesFilename);
+    }
+
+    public JSONObject deserializePayNyms()  throws IOException, JSONException  {
+        return deserializeAux(new CharSequenceX(AccessFactory.getInstance(context).getGUID() + AccessFactory.getInstance().getPIN()), strPayNymFilename);
     }
 
     public synchronized void wipe() throws IOException	{
@@ -199,10 +302,11 @@ public class PayloadUtil	{
             wallet.put("accounts", accts);
 
             //
-            // export BIP47 payment code for debug payload
+            // export BIP47 payment codes for debug payload
             //
             try {
                 wallet.put("payment_code", BIP47Util.getInstance(context).getPaymentCode().toString());
+                wallet.put("payment_code_feature", BIP47Util.getInstance(context).getFeaturePaymentCode().toString());
             }
             catch(AddressFormatException afe) {
                 ;
@@ -245,10 +349,12 @@ public class PayloadUtil	{
             meta.put("spend_type", PrefsUtil.getInstance(context).getValue(PrefsUtil.SPEND_TYPE, SendActivity.SPEND_BOLTZMANN));
             meta.put("use_boltzmann", PrefsUtil.getInstance(context).getValue(PrefsUtil.USE_BOLTZMANN, true));
             meta.put("rbf_opt_in", PrefsUtil.getInstance(context).getValue(PrefsUtil.RBF_OPT_IN, false));
+            meta.put("use_ricochet", PrefsUtil.getInstance(context).getValue(PrefsUtil.USE_RICOCHET, false));
             meta.put("bip47", BIP47Meta.getInstance().toJSON());
             meta.put("pin", AccessFactory.getInstance().getPIN());
             meta.put("pin2", AccessFactory.getInstance().getPIN2());
             meta.put("ricochet", RicochetMeta.getInstance(context).toJSON());
+            meta.put("whirlpool", WhirlpoolMeta.getInstance(context).toJSON());
             meta.put("trusted_node", TrustedNodeUtil.getInstance().toJSON());
             meta.put("rbfs", RBFUtil.getInstance().toJSON());
             meta.put("tor", TorUtil.getInstance(context).toJSON());
@@ -277,6 +383,8 @@ public class PayloadUtil	{
             meta.put("xpublock84", PrefsUtil.getInstance(context).getValue(PrefsUtil.XPUB84LOCK, false));
             meta.put("paynym_claimed", PrefsUtil.getInstance(context).getValue(PrefsUtil.PAYNYM_CLAIMED, false));
             meta.put("paynym_refused", PrefsUtil.getInstance(context).getValue(PrefsUtil.PAYNYM_REFUSED, false));
+            meta.put("paynym_featured_v1", PrefsUtil.getInstance(context).getValue(PrefsUtil.PAYNYM_FEATURED_SEGWIT, false));
+            meta.put("user_offline", AppUtil.getInstance(context).isUserOfflineMode());
 
             JSONObject obj = new JSONObject();
             obj.put("wallet", wallet);
@@ -325,6 +433,23 @@ public class PayloadUtil	{
 
     }
 
+    private MnemonicCode computeMnemonicCode(Context ctx) throws IOException {
+        InputStream wis = ctx.getResources().getAssets().open("BIP39/en.txt");
+        MnemonicCode mc = null;
+        if (wis != null) {
+            mc = new MnemonicCode(wis, HD_WalletFactory.BIP39_ENGLISH_SHA256);
+            wis.close();
+        }
+        return mc;
+    }
+
+    private HD_Wallet newHDWallet(Context ctx, int purpose, JSONObject jsonobj, NetworkParameters params) throws JSONException, DecoderException, MnemonicException.MnemonicLengthException, IOException {
+        byte[] seed = org.apache.commons.codec.binary.Hex.decodeHex(((String) jsonobj.get("seed")).toCharArray());
+        String strPassphrase = jsonobj.getString("passphrase");
+        MnemonicCode mc = computeMnemonicCode(ctx);
+        return new HD_Wallet(purpose, mc, params, seed, strPassphrase, SamouraiWallet.NB_ACCOUNTS);
+    }
+
     public synchronized HD_Wallet restoreWalletfromJSON(JSONObject obj) throws DecoderException, MnemonicException.MnemonicLengthException {
 
 //        Log.i("PayloadUtil", obj.toString());
@@ -369,7 +494,7 @@ public class PayloadUtil	{
                     PrefsUtil.getInstance(context).removeValue(PrefsUtil.TESTNET);
                 }
 
-                hdw = new HD_Wallet(context, 44, wallet, params);
+                hdw = newHDWallet(context, 44, wallet, params);
                 hdw.getAccount(SamouraiWallet.SAMOURAI_ACCOUNT).getReceive().setAddrIdx(wallet.has("receiveIdx") ? wallet.getInt("receiveIdx") : 0);
                 hdw.getAccount(SamouraiWallet.SAMOURAI_ACCOUNT).getChange().setAddrIdx(wallet.has("changeIdx") ? wallet.getInt("changeIdx") : 0);
 
@@ -428,6 +553,9 @@ public class PayloadUtil	{
                     editor.putBoolean("rbf", meta.getBoolean("rbf_opt_in") ? true : false);
                     editor.commit();
                 }
+                if(meta.has("use_ricochet")) {
+                    PrefsUtil.getInstance(context).setValue(PrefsUtil.USE_RICOCHET, meta.getBoolean("use_ricochet"));
+                }
                 if(meta.has("sent_tos")) {
                     SendAddressUtil.getInstance().fromJSON((JSONArray) meta.get("sent_tos"));
                 }
@@ -453,6 +581,9 @@ public class PayloadUtil	{
                 }
                 if(meta.has("ricochet")) {
                     RicochetMeta.getInstance(context).fromJSON((JSONObject) meta.get("ricochet"));
+                }
+                if(meta.has("whirlpool")) {
+                    WhirlpoolMeta.getInstance(context).fromJSON((JSONObject) meta.get("whirlpool"));
                 }
                 if(meta.has("trusted_node")) {
                     TrustedNodeUtil.getInstance().fromJSON((JSONObject) meta.get("trusted_node"));
@@ -557,6 +688,12 @@ public class PayloadUtil	{
                 if(meta.has("paynym_refused")) {
                     PrefsUtil.getInstance(context).setValue(PrefsUtil.PAYNYM_REFUSED, meta.getBoolean("paynym_refused"));
                 }
+                if(meta.has("paynym_featured_v1")) {
+                    PrefsUtil.getInstance(context).setValue(PrefsUtil.PAYNYM_FEATURED_SEGWIT, meta.getBoolean("paynym_featured_v1"));
+                }
+                if(meta.has("user_offline")) {
+                    AppUtil.getInstance(context).setUserOfflineMode(meta.getBoolean("user_offline"));
+                }
 
                 /*
                 if(obj.has("passphrase")) {
@@ -627,6 +764,8 @@ public class PayloadUtil	{
 //            secureDelete(tmpfile);
         }
 
+        tmpfile.createNewFile();
+
         String data = null;
         String jsonstr = jsonobj.toString(4);
         if(password != null) {
@@ -661,6 +800,87 @@ public class PayloadUtil	{
         File dir = context.getDir(dataDir, Context.MODE_PRIVATE);
         File file = new File(dir, useBackup ? strBackupFilename : strFilename);
 //        Log.i("PayloadUtil", "wallet file exists: " + file.exists());
+        StringBuilder sb = new StringBuilder();
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF8"));
+        String str = null;
+
+        while((str = in.readLine()) != null) {
+            sb.append(str);
+        }
+
+        in.close();
+
+        JSONObject jsonObj = null;
+        try {
+            jsonObj = new JSONObject(sb.toString());
+        }
+        catch(JSONException je)   {
+            ;
+        }
+        String payload = null;
+        if(jsonObj != null && jsonObj.has("payload"))    {
+            payload = jsonObj.getString("payload");
+        }
+
+        // not a json stream, assume v0
+        if(payload == null)    {
+            payload = sb.toString();
+        }
+
+        JSONObject node = null;
+        if(password == null) {
+            node = new JSONObject(payload);
+        }
+        else {
+            String decrypted = null;
+            try {
+                decrypted = AESUtil.decrypt(payload, password, AESUtil.DefaultPBKDF2Iterations);
+            }
+            catch(Exception e) {
+                return null;
+            }
+            if(decrypted == null) {
+                return null;
+            }
+            node = new JSONObject(decrypted);
+        }
+
+        return node;
+    }
+
+    private synchronized void serializeAux(JSONObject jsonobj, CharSequenceX password, String filename) throws IOException, JSONException, DecryptionException, UnsupportedEncodingException {
+
+        File dir = context.getDir(dataDir, Context.MODE_PRIVATE);
+        File newfile = new File(dir, filename);
+        newfile.setWritable(true, true);
+
+        newfile.createNewFile();
+
+        String data = null;
+        String jsonstr = jsonobj.toString(4);
+        if(password != null) {
+            data = AESUtil.encrypt(jsonstr, password, AESUtil.DefaultPBKDF2Iterations);
+        }
+        else {
+            data = jsonstr;
+        }
+
+        JSONObject jsonObj = putPayload(data, false);
+        if(jsonObj != null)    {
+            Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(newfile), "UTF-8"));
+            try {
+                out.write(jsonObj.toString());
+            } finally {
+                out.close();
+            }
+        }
+    }
+
+    private synchronized JSONObject deserializeAux(CharSequenceX password, String filename) throws IOException, JSONException {
+
+        File dir = context.getDir(dataDir, Context.MODE_PRIVATE);
+        File file = new File(dir, filename);
         StringBuilder sb = new StringBuilder();
 
         BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF8"));

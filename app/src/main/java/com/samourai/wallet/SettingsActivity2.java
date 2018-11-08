@@ -8,15 +8,10 @@ import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.content.pm.Signature;
 import android.graphics.Bitmap;
 import android.net.Uri;
-import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.preference.CheckBoxPreference;
@@ -53,43 +48,37 @@ import com.google.zxing.client.android.encode.QRCodeEncoder;
 
 import com.samourai.wallet.JSONRPC.JSONRPC;
 import com.samourai.wallet.JSONRPC.TrustedNodeUtil;
-import com.samourai.wallet.R;
 import com.samourai.wallet.access.AccessFactory;
 import com.samourai.wallet.api.APIFactory;
 import com.samourai.wallet.crypto.AESUtil;
 import com.samourai.wallet.crypto.DecryptionException;
 import com.samourai.wallet.hd.HD_WalletFactory;
 import com.samourai.wallet.payload.PayloadUtil;
+import com.samourai.wallet.ricochet.RicochetMeta;
 import com.samourai.wallet.segwit.BIP49Util;
 import com.samourai.wallet.segwit.BIP84Util;
 import com.samourai.wallet.send.FeeUtil;
 import com.samourai.wallet.send.PushTx;
-import com.samourai.wallet.service.BroadcastReceiverService;
-import com.samourai.wallet.util.AddressFactory;
+import com.samourai.wallet.send.RBFUtil;
 import com.samourai.wallet.util.AppUtil;
+import com.samourai.wallet.util.BatchSendUtil;
 import com.samourai.wallet.util.BlockExplorerUtil;
 import com.samourai.wallet.util.CharSequenceX;
-import com.samourai.wallet.util.ExchangeRateFactory;
-import com.samourai.wallet.util.MonetaryUtil;
 import com.samourai.wallet.util.PrefsUtil;
+import com.samourai.wallet.util.ReceiversUtil;
 import com.samourai.wallet.util.SIMUtil;
+import com.samourai.wallet.util.SendAddressUtil;
 import com.samourai.wallet.util.TorUtil;
 
 import com.yanzhenjie.zbar.Symbol;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.MessageDigest;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.util.List;
 
 import info.guardianproject.netcipher.proxy.OrbotHelper;
 
@@ -111,14 +100,6 @@ public class SettingsActivity2 extends PreferenceActivity	{
 
             if(strBranch.equals("prefs"))    {
                 addPreferencesFromResource(R.xml.settings_prefs);
-
-                Preference fiatPref = (Preference) findPreference("fiat");
-                fiatPref.setOnPreferenceClickListener(new OnPreferenceClickListener() {
-                    public boolean onPreferenceClick(Preference preference) {
-                        getExchange();
-                        return true;
-                    }
-                });
 
                 Preference explorersPref = (Preference) findPreference("explorer");
                 explorersPref.setOnPreferenceClickListener(new OnPreferenceClickListener() {
@@ -273,8 +254,7 @@ public class SettingsActivity2 extends PreferenceActivity	{
                                 getPackageManager().setComponentEnabledSetting(component, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);
                                 PrefsUtil.getInstance(SettingsActivity2.this).setValue(PrefsUtil.ICON_HIDDEN, false);
 
-                                stopService(new Intent(SettingsActivity2.this, BroadcastReceiverService.class));
-                                startService(new Intent(SettingsActivity2.this, BroadcastReceiverService.class));
+                                ReceiversUtil.getInstance(SettingsActivity2.this).initReceivers();
 
                                 AppUtil.getInstance(SettingsActivity2.this).restartApp();
                             }
@@ -294,8 +274,7 @@ public class SettingsActivity2 extends PreferenceActivity	{
                                                 getPackageManager().setComponentEnabledSetting(component, PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
                                                 PrefsUtil.getInstance(SettingsActivity2.this).setValue(PrefsUtil.ICON_HIDDEN, true);
 
-                                                stopService(new Intent(SettingsActivity2.this, BroadcastReceiverService.class));
-                                                startService(new Intent(SettingsActivity2.this, BroadcastReceiverService.class));
+                                                ReceiversUtil.getInstance(SettingsActivity2.this).initReceivers();
 
                                                 try {
                                                     PayloadUtil.getInstance(SettingsActivity2.this).saveWalletToJSON(new CharSequenceX(AccessFactory.getInstance(SettingsActivity2.this).getGUID() + AccessFactory.getInstance(SettingsActivity2.this).getPIN()));
@@ -436,15 +415,11 @@ public class SettingsActivity2 extends PreferenceActivity	{
 
                         if (cbPref2.isChecked()) {
                             PrefsUtil.getInstance(SettingsActivity2.this).setValue(PrefsUtil.ACCEPT_REMOTE, false);
-
-                            stopService(new Intent(SettingsActivity2.this, BroadcastReceiverService.class));
-                            startService(new Intent(SettingsActivity2.this, BroadcastReceiverService.class));
+                            ReceiversUtil.getInstance(SettingsActivity2.this).initReceivers();
                         }
                         else {
                             PrefsUtil.getInstance(SettingsActivity2.this).setValue(PrefsUtil.ACCEPT_REMOTE, true);
-
-                            stopService(new Intent(SettingsActivity2.this, BroadcastReceiverService.class));
-                            startService(new Intent(SettingsActivity2.this, BroadcastReceiverService.class));
+                            ReceiversUtil.getInstance(SettingsActivity2.this).initReceivers();
                         }
 
                         return true;
@@ -878,6 +853,30 @@ public class SettingsActivity2 extends PreferenceActivity	{
                     }
                 });
 
+                Preference prunePref = (Preference) findPreference("prune");
+                prunePref.setOnPreferenceClickListener(new OnPreferenceClickListener() {
+                    public boolean onPreferenceClick(Preference preference) {
+                        doPrune();
+                        return true;
+                    }
+                });
+
+                Preference addressCalcPref = (Preference) findPreference("acalc");
+                addressCalcPref.setOnPreferenceClickListener(new OnPreferenceClickListener() {
+                    public boolean onPreferenceClick(Preference preference) {
+                        doAddressCalc();
+                        return true;
+                    }
+                });
+
+                Preference paynymCalcPref = (Preference) findPreference("pcalc");
+                paynymCalcPref.setOnPreferenceClickListener(new OnPreferenceClickListener() {
+                    public boolean onPreferenceClick(Preference preference) {
+                        doPayNymCalc();
+                        return true;
+                    }
+                });
+
             }
             else if(strBranch.equals("other"))   {
                 addPreferencesFromResource(R.xml.settings_other);
@@ -1100,67 +1099,6 @@ public class SettingsActivity2 extends PreferenceActivity	{
                     }
                 })
                 .show();
-
-    }
-
-    private void getExchange()	{
-
-        final String[] exchanges = ExchangeRateFactory.getInstance(this).getExchangeLabels();
-        final int sel = PrefsUtil.getInstance(SettingsActivity2.this).getValue(PrefsUtil.CURRENT_EXCHANGE_SEL, 0);
-
-        new AlertDialog.Builder(SettingsActivity2.this)
-                .setTitle(R.string.options_currency)
-                .setSingleChoiceItems(exchanges, sel, new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int which) {
-                                PrefsUtil.getInstance(SettingsActivity2.this).setValue(PrefsUtil.CURRENT_EXCHANGE, exchanges[which].substring(exchanges[which].length() - 3));
-                                PrefsUtil.getInstance(SettingsActivity2.this).setValue(PrefsUtil.CURRENT_EXCHANGE_SEL, which);
-                                if(which == 2)    {
-                                    PrefsUtil.getInstance(SettingsActivity2.this).setValue(PrefsUtil.CURRENT_FIAT, "USD");
-                                    PrefsUtil.getInstance(SettingsActivity2.this).setValue(PrefsUtil.CURRENT_FIAT_SEL, 0);
-                                    dialog.dismiss();
-                                }
-                                else    {
-                                    dialog.dismiss();
-                                    getFiat();
-                                }
-
-                            }
-                        }
-                ).show();
-
-    }
-
-    private void getFiat()	{
-
-        final int fxSel = PrefsUtil.getInstance(SettingsActivity2.this).getValue(PrefsUtil.CURRENT_EXCHANGE_SEL, 0);
-
-        final String[] currencies;
-        if(fxSel == 1)	{
-            currencies = ExchangeRateFactory.getInstance(this).getCurrencyLabelsBTCe();
-        }
-        else	{
-            currencies = ExchangeRateFactory.getInstance(this).getCurrencyLabels();
-        }
-
-        new AlertDialog.Builder(SettingsActivity2.this)
-                .setTitle(R.string.options_currency)
-                .setSingleChoiceItems(currencies, 0, new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int which) {
-
-                                String selectedCurrency = null;
-                                if (currencies[which].substring(currencies[which].length() - 3).equals("RUR")) {
-                                    selectedCurrency = "RUB";
-                                }
-                                else {
-                                    selectedCurrency = currencies[which].substring(currencies[which].length() - 3);
-                                }
-
-                                PrefsUtil.getInstance(SettingsActivity2.this).setValue(PrefsUtil.CURRENT_FIAT, selectedCurrency);
-                                PrefsUtil.getInstance(SettingsActivity2.this).setValue(PrefsUtil.CURRENT_FIAT_SEL, which);
-                                dialog.dismiss();
-                            }
-                        }
-                ).show();
 
     }
 
@@ -1499,6 +1437,55 @@ public class SettingsActivity2 extends PreferenceActivity	{
 
     }
 
+    private void doPrune()   {
+
+        AlertDialog.Builder dlg = new AlertDialog.Builder(SettingsActivity2.this)
+                .setTitle(R.string.app_name)
+                .setMessage(R.string.prune_backup)
+                .setCancelable(false)
+                .setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+
+                        try {
+
+//                            BIP47Meta.getInstance().pruneIncoming();
+                            SendAddressUtil.getInstance().reset();
+                            RicochetMeta.getInstance(SettingsActivity2.this).empty();
+                            BatchSendUtil.getInstance().clear();
+                            RBFUtil.getInstance().clear();
+
+                            PayloadUtil.getInstance(SettingsActivity2.this).saveWalletToJSON(new CharSequenceX(AccessFactory.getInstance(SettingsActivity2.this).getGUID() + AccessFactory.getInstance(SettingsActivity2.this).getPIN()));
+
+                        }
+                        catch(JSONException je) {
+                            je.printStackTrace();
+                            Toast.makeText(SettingsActivity2.this, R.string.error_reading_payload, Toast.LENGTH_SHORT).show();
+                        }
+                        catch(MnemonicException.MnemonicLengthException mle) {
+                            ;
+                        }
+                        catch(IOException ioe) {
+                            ;
+                        }
+                        catch(DecryptionException de) {
+                            ;
+                        }
+
+                    }
+
+                }).setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+
+                        ;
+
+                    }
+                });
+        if(!isFinishing())    {
+            dlg.show();
+        }
+
+    }
+
     private void doSendBackup() {
 
         try {
@@ -1533,6 +1520,16 @@ public class SettingsActivity2 extends PreferenceActivity	{
         Intent intent = new Intent(SettingsActivity2.this, ZBarScannerActivity.class);
         intent.putExtra(ZBarConstants.SCAN_MODES, new int[]{ Symbol.QRCODE } );
         startActivityForResult(intent, SCAN_HEX_TX);
+    }
+
+    private void doAddressCalc()    {
+        Intent intent = new Intent(SettingsActivity2.this, AddressCalcActivity.class);
+        startActivity(intent);
+    }
+
+    private void doPayNymCalc()    {
+        Intent intent = new Intent(SettingsActivity2.this, PayNymCalcActivity.class);
+        startActivity(intent);
     }
 
     private void doBroadcastHex()    {

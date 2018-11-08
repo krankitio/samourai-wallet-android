@@ -7,12 +7,12 @@ import android.app.IntentService;
 import android.app.Notification;
 import android.content.Intent;
 import android.os.Build;
-import android.os.Looper;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.widget.Toast;
 
 import com.samourai.wallet.R;
+import com.samourai.wallet.SamouraiWallet;
 import com.samourai.wallet.access.AccessFactory;
 import com.samourai.wallet.api.APIFactory;
 import com.samourai.wallet.bip47.BIP47Meta;
@@ -25,11 +25,9 @@ import com.samourai.wallet.payload.PayloadUtil;
 import com.samourai.wallet.segwit.BIP49Util;
 import com.samourai.wallet.segwit.BIP84Util;
 import com.samourai.wallet.util.AddressFactory;
+import com.samourai.wallet.util.AppUtil;
 import com.samourai.wallet.util.CharSequenceX;
-import com.samourai.wallet.util.ConnectivityStatus;
-import com.samourai.wallet.util.ExchangeRateFactory;
 import com.samourai.wallet.util.PrefsUtil;
-import com.samourai.wallet.util.WebUtil;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.bitcoinj.core.AddressFormatException;
@@ -110,7 +108,7 @@ public class RefreshService extends IntentService {
 
         PrefsUtil.getInstance(RefreshService.this).setValue(PrefsUtil.FIRST_RUN, false);
 
-        if(notifTx)    {
+        if(notifTx && !AppUtil.getInstance(RefreshService.this).isOfflineMode())    {
             //
             // check for incoming payment code notification tx
             //
@@ -118,7 +116,7 @@ public class RefreshService extends IntentService {
                 PaymentCode pcode = BIP47Util.getInstance(RefreshService.this).getPaymentCode();
 //                    Log.i("BalanceFragment", "payment code:" + pcode.toString());
 //                    Log.i("BalanceFragment", "notification address:" + pcode.notificationAddress().getAddressString());
-                APIFactory.getInstance(RefreshService.this).getNotifAddress(pcode.notificationAddress().getAddressString());
+                APIFactory.getInstance(RefreshService.this).getNotifAddress(pcode.notificationAddress(SamouraiWallet.getInstance().getCurrentNetworkParams()).getAddressString());
             }
             catch (AddressFormatException afe) {
                 afe.printStackTrace();
@@ -202,76 +200,6 @@ public class RefreshService extends IntentService {
 
         Intent _intent = new Intent("com.samourai.wallet.BalanceFragment.DISPLAY");
         LocalBroadcastManager.getInstance(RefreshService.this).sendBroadcast(_intent);
-
-        doExchangeRates();
-
-    }
-
-    private void doExchangeRates()  {
-
-        if(ConnectivityStatus.hasConnectivity(RefreshService.this))    {
-
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    Looper.prepare();
-
-                    String response = null;
-                    try {
-                        response = WebUtil.getInstance(null).getURL(WebUtil.LBC_EXCHANGE_URL);
-                        ExchangeRateFactory.getInstance(RefreshService.this).setDataLBC(response);
-                        ExchangeRateFactory.getInstance(RefreshService.this).parseLBC();
-                    }
-                    catch(Exception e) {
-                        e.printStackTrace();
-                    }
-
-                    response = null;
-                    try {
-                        response = WebUtil.getInstance(null).getURL(WebUtil.BTCe_EXCHANGE_URL + "btc_usd");
-                        ExchangeRateFactory.getInstance(RefreshService.this).setDataBTCe(response);
-                        ExchangeRateFactory.getInstance(RefreshService.this).parseBTCe();
-                    }
-                    catch(Exception e) {
-                        e.printStackTrace();
-                    }
-
-                    response = null;
-                    try {
-                        response = WebUtil.getInstance(null).getURL(WebUtil.BTCe_EXCHANGE_URL + "btc_rur");
-                        ExchangeRateFactory.getInstance(RefreshService.this).setDataBTCe(response);
-                        ExchangeRateFactory.getInstance(RefreshService.this).parseBTCe();
-                    }
-                    catch(Exception e) {
-                        e.printStackTrace();
-                    }
-
-                    response = null;
-                    try {
-                        response = WebUtil.getInstance(null).getURL(WebUtil.BTCe_EXCHANGE_URL + "btc_eur");
-                        ExchangeRateFactory.getInstance(RefreshService.this).setDataBTCe(response);
-                        ExchangeRateFactory.getInstance(RefreshService.this).parseBTCe();
-                    }
-                    catch(Exception e) {
-                        e.printStackTrace();
-                    }
-
-                    response = null;
-                    try {
-                        response = WebUtil.getInstance(null).getURL(WebUtil.BFX_EXCHANGE_URL);
-                        ExchangeRateFactory.getInstance(RefreshService.this).setDataBFX(response);
-                        ExchangeRateFactory.getInstance(RefreshService.this).parseBFX();
-                    }
-                    catch(Exception e) {
-                        e.printStackTrace();
-                    }
-
-                    Looper.loop();
-
-                }
-            }).start();
-
-        }
 
     }
 
